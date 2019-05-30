@@ -4,7 +4,7 @@ Run the code with the help `-h` flag and it will pull down some options.
 
     python PolyFastA.py -h
 
-
+It will output something like this:
 
     usage: PolyFastA.py [-h] [--file FILE] [--dir DIR] [--pops [pop1,pop2,pop3]]
                         [--out OUT] [--pipe] [--cds] [--silent] [--name NAME]
