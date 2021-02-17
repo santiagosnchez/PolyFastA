@@ -13,7 +13,7 @@ def main():
     parser = argparse.ArgumentParser(prog="PolyFastA.py",
     formatter_class=argparse.RawTextHelpFormatter,
     description="""
-    Fast estimator of nucleotide diversity (pi), theta, and Tajimas\'s D 
+    Fast estimator of nucleotide diversity (pi), theta, and Tajimas\'s D
     based on the site frequency spectrum.\n""",
     epilog="""
     Examples:
@@ -27,10 +27,10 @@ def main():
     >pop2_ind1_XXX
     ATGC...
     >pop2_ind2_XXX
-    
+
     Alignment is inframe cooding sequence:
     python PolyFastA.py -f myAlignment.fas -p pop1,pop2 --cds
-    
+
     Want Jukes-Cantor corrected estimates for CDS:
     python PolyFastA.py -f myAlignment.fas -p pop1,pop2 --cds --jc
 
@@ -73,8 +73,8 @@ def main():
     # process arguments
     r = None
     if args.file == ''  and args.dir == '.' and not args.pipe:
-        print "Both --file/-f and --dir/-d were not found."
-        r = raw_input("Do you wish to run polySFS on all files in the current directory? [y|n]: ")
+        print("Both --file/-f and --dir/-d were not found.")
+        r = input("Do you wish to run polySFS on all files in the current directory? [y|n]: ")
         if r != 'y':
             parser.error(parser.print_help())
     if len(args.file) != 0 and args.dir != '.':
@@ -106,7 +106,7 @@ def main():
             for pop in popkeys:
                 grp = filter(lambda x: pop in x, d.keys())
                 if len(grp) == 0:
-                    print "Pop {} string was not found in fasta headers.".format(pop)
+                    print(f"Pop {pop} string was not found in fasta headers.")
                     continue
                 dgrp = {k:d[k] for k in grp}
                 print_result(dgrp, seqlen, args.cds, args.out, "a", args.file, pop, args.silent, 0, args.jc)
@@ -125,7 +125,7 @@ def main():
             else:
                 parser.error("Sequences do not have the same length.")
             if args.cds and (seqlen % 3) != 0:
-                parser.error("CDS sequence length is not a multiple of 3: {}".format(file))
+                parser.error(f"CDS sequence length is not a multiple of 3: {file}")
             if not args.pops:
                 print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
             else:
@@ -133,7 +133,7 @@ def main():
                 for pop in popkeys:
                     grp = filter(lambda x: pop in x, d.keys())
                     if len(grp) == 0:
-                        print "Pop {} string was not found in fasta headers.".format(pop)
+                        print(f"Pop {pop} string was not found in fasta headers.")
                         continue
                     dgrp = {k: d[k] for k in grp}
                     print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
@@ -158,24 +158,22 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
             if len(out) != 0:
                 with open(out,aow) as o:
                     if not silent:
-                        sys.stdout.write("Writting to {}, pop: {:<10s}, parsing: {:<15s}\n".format(out,pop,file)),
+                        sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n" % (out,pop,file)),
                         sys.stdout.flush()
-                    o.write("{},{},{},{},{},{},{},{},{},{},{},{},{}\n".\
-                    format(file,seqlen,pop,N,ply_s[0],ply_n[0],ply_s[1],ply_n[1],ply_s[2],ply_n[2],ply_s[3],ply_n[3],nstops))
+                    o.write(f"{file},{seqlen},{pop},{N},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
             else:
-                print "{},{},{},{},{},{},{},{},{},{},{},{},{}".\
-                    format(file,seqlen,pop,N,ply_s[0],ply_n[0],ply_s[1],ply_n[1],ply_s[2],ply_n[2],ply_s[3],ply_n[3],nstops)
+                print(f"{file},{seqlen},{pop},{N},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
         else:
             N = len(d)
             ply = polymorphism(getsfs(var),N,seqlen,var,jc)
             if len(out) != 0:
                 with open(out,aow) as o:
                     if not silent:
-                        sys.stdout.write("Writting to {}, pop: {:<10s}, parsing: {:<15s}\n".format(out,pop,file)),
+                        sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
                         sys.stdout.flush()
-                    o.write("{},{},{},{},{},{},{},{}\n".format(file,seqlen,pop,N,ply[0],ply[1],ply[2],ply[3]))
+                    o.write(f"{file},{seqlen},{pop},{N},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
             else:
-                print "{},{},{},{},{},{},{},{}".format(file,seqlen,pop,N,ply[0],ply[1],ply[2],ply[3])
+                print(f"{file},{seqlen},{pop},{N},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
     if silent:
         no_header(d, seqlen, cds, out, aow, file, pop)
     else:
@@ -194,14 +192,14 @@ def print_header(header, cds, out, aow):
                 with open(out,aow) as o:
                     o.write("file,seqlen,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops\n")
             else:
-                print "file,seqlen,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops"
+                print("file,seqlen,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops")
     else:
         if header == 1 or header == 2:
             if len(out) != 0:
                 with open(out,aow) as o:
                     o.write("file,seqlen,pop,N,seg_sites,pi,theta,tajimasD\n")
             else:
-                print "file,seqlen,pop,N,seg_sites,pi,theta,tajimasD"
+                print("file,seqlen,pop,N,seg_sites,pi,theta,tajimasD")
 
 def readfasta(file, stdin):
     data = {}
@@ -386,26 +384,26 @@ def wrapseq(seq):
 def syn_nonsyn_matrix(aa=None, degen=None):
     # universal genetic code
     gc = {
-     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T', 'AGA': 'R', 'AGC': 'S', 'AGG': 'R', 'AGT': 'S', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I', 
-     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P', 'CCC': 'P', 'CCG': 'P', 'CCT': 'P', 'CGA': 'R', 'CGC': 'R', 'CGG': 'R', 'CGT': 'R', 'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L', 
+     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T', 'AGA': 'R', 'AGC': 'S', 'AGG': 'R', 'AGT': 'S', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
+     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P', 'CCC': 'P', 'CCG': 'P', 'CCT': 'P', 'CGA': 'R', 'CGC': 'R', 'CGG': 'R', 'CGT': 'R', 'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
      'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A', 'GCC': 'A', 'GCG': 'A', 'GCT': 'A', 'GGA': 'G', 'GGC': 'G', 'GGG': 'G', 'GGT': 'G', 'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
      'TAA': 'stop', 'TAC': 'Y', 'TAG': 'stop', 'TAT': 'Y', 'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S', 'TGA': 'stop', 'TGC': 'C', 'TGG': 'W', 'TGT': 'C', 'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
     # degenerancy dictionary
     gc_degen = {
-     'AAA': '2fAG', 'AAC': '2fCT', 'AAG': '2fAG', 'AAT': '2fCT', 'ACA': '4f', 'ACC': '4f', 'ACG': '4f', 'ACT': '4f', 'AGA': '2fAG', 'AGC': '2fCT', 'AGG': '2fAG', 'AGT': '2fCT', 'ATA': '3f', 'ATC': '3f', 'ATG': '0f', 'ATT': '3f', 
-     'CAA': '2fAG', 'CAC': '2fCT', 'CAG': '2fAG', 'CAT': '2fCT', 'CCA': '4f', 'CCC': '4f', 'CCG': '4f', 'CCT': '4f', 'CGA': '4f', 'CGC': '4f', 'CGG': '4f', 'CGT': '4f', 'CTA': '4f', 'CTC': '4f', 'CTG': '4f', 'CTT': '4f', 
-     'GAA': '2fAG', 'GAC': '2fCT', 'GAG': '2fAG', 'GAT': '2fCT', 'GCA': '4f', 'GCC': '4f', 'GCG': '4f', 'GCT': '4f', 'GGA': '4f', 'GGC': '4f', 'GGG': '4f', 'GGT': '4f', 'GTA': '4f', 'GTC': '4f', 'GTG': '4f', 'GTT': '4f', 
+     'AAA': '2fAG', 'AAC': '2fCT', 'AAG': '2fAG', 'AAT': '2fCT', 'ACA': '4f', 'ACC': '4f', 'ACG': '4f', 'ACT': '4f', 'AGA': '2fAG', 'AGC': '2fCT', 'AGG': '2fAG', 'AGT': '2fCT', 'ATA': '3f', 'ATC': '3f', 'ATG': '0f', 'ATT': '3f',
+     'CAA': '2fAG', 'CAC': '2fCT', 'CAG': '2fAG', 'CAT': '2fCT', 'CCA': '4f', 'CCC': '4f', 'CCG': '4f', 'CCT': '4f', 'CGA': '4f', 'CGC': '4f', 'CGG': '4f', 'CGT': '4f', 'CTA': '4f', 'CTC': '4f', 'CTG': '4f', 'CTT': '4f',
+     'GAA': '2fAG', 'GAC': '2fCT', 'GAG': '2fAG', 'GAT': '2fCT', 'GCA': '4f', 'GCC': '4f', 'GCG': '4f', 'GCT': '4f', 'GGA': '4f', 'GGC': '4f', 'GGG': '4f', 'GGT': '4f', 'GTA': '4f', 'GTC': '4f', 'GTG': '4f', 'GTT': '4f',
      'TAA': 'stop', 'TAC': '2fCT', 'TAG': 'stop', 'TAT': '2fCT', 'TCA': '4f', 'TCC': '4f', 'TCG': '4f', 'TCT': '4f', 'TGA': 'stop', 'TGC': '2fCT', 'TGG': '0f', 'TGT': '2fCT', 'TTA': '2fAG', 'TTC': '2fCT', 'TTG': '2fAG', 'TTT': '2fCT'}
     # build codon 64x64 dictionary
     codons = sorted(gc.keys())
     aamat = {}
     c = 0
-    for i in codons:   
+    for i in codons:
         aamat[i] = {}
         for j in codons:
             aamat[i][j] = c
             c += 1
-    
+
     # propagate mutation
     for i in range(64):
         for j in range(64):
@@ -631,80 +629,3 @@ def syn_nonsyn_matrix(aa=None, degen=None):
 
 if __name__ == '__main__':
     main()
-
-
-# def nuc_div1(sfs,N):
-#     return (2.0/(N*(N-1.0)))*sum( map(lambda i: sfs[i]*(i+1)*(N-(i+1)), range(len(sfs))) )
-
-
-# def getvarcodons(d, pos, var, seqlen):
-#     everythird = range(0,seqlen,3)
-#     fourfold = []
-#     threefold = []
-#     twofold = []
-#     zerofold = []
-#     syncod = []
-#     freqs = []
-#     pos0 = []
-#     nstops = 0
-#     for p in pos:
-#         pos0_e3 = everythird[p/3]
-#         pos0.append(pos0_e3)
-#         cod_pos = p-pos0_e3
-#         codons_all = map(lambda x: d[x][pos0_e3:pos0_e3+3], d.keys())
-#         codons = list(set(codons_all))
-#         nstops,codons = delstop(codons,nstops)
-#         alelles_per_site = [ len(set([ c[i] for c in codons ])) for i in range(0,3) ]
-#         if alelles_per_site[cod_pos] == 2:  # only two alelles per site
-#             if cod_pos == 2:
-#                 if any([ 'TGG' in c or 'ATG' in c for c in codons ]):
-#                     zerofold.append(p)
-#                 elif any([ c[0:2] == 'AT' and c[2] != for c in codons ]):
-#                     threefold.append(p)
-#                     syncod += codons
-#                     freqs.append(codfreq3(codons[0])+codfreq3(codons[1]))
-#                 elif any([ c[1] == 'C' for c in codons ]) or \
-#                      any([ c[1] == 'T' and ( c[0] == 'C' or c[0] == 'G' ) for c in codons ]) or \
-#                      any([ c[1] == 'G' and ( c[0] == 'C' or c[0] == 'G' ) for c in codons ]):
-#                     fourfold.append(p)
-#                     syncod += codons
-#                 elif any([ c[1] == 'T' and ( c[2] == 'T' or c[2] == 'C' ) for c in codons ]) or \
-#                      any([ c[1] == 'T' and ( c[2] == 'A' or c[2] == 'G' ) for c in codons ]) or \
-#                      any([ c[1] == 'A' and ( c[2] == 'T' or c[2] == 'C' ) for c in codons ]) or \
-#                      any([ c[1] == 'A' and ( c[2] == 'A' or c[2] == 'G' ) for c in codons ]) or \
-#                      any([ c[1] == 'G' and ( c[2] == 'T' or c[2] == 'C' ) for c in codons ]) or \
-#                      any([ c[1] == 'G' and ( c[2] == 'A' or c[2] == 'G' ) for c in codons ]):
-#                     twofold.append(p)
-#                     syncod += codons
-#                     for c in codons:
-#                         freqs.append(codfreq3(c))
-#                 else:
-#                     zerofold.append(p)
-#             if cod_pos == 0:
-#                 if any([ c[1] == 'G' and ( c[0] == 'C' or c[0] == 'A' ) for c in codons ]):
-#                     twofold.append(p)
-#                     syncod += codons
-#                     for c in codons:
-#                         freqs.append(codfreq1(c))
-#                 else:
-#                     zerofold.append(p)
-#             if cod_pos == 1:
-#                 if any([ c[0:2] == 'TC' for c in codons ]) and any([ c == 'AGT' or c == 'AGC' for c in codons ]):
-#                     twofold.append(p)
-#                     syncod += codons
-#                     for c in codons:
-#                         freqs.append(codfreq2(c))
-#                 else:
-#                     zerofold.append(p)
-#     synonymous = fourfold + twofold + threefold
-#     synonymous.sort()
-#     zerofold.sort()
-#     pos0 = list(set(pos0))
-#     for i in pos0: everythird.remove(i)
-#     for i in everythird:
-#         freqs += [ codfreq3(d[ d.keys()[0] ][i:i+3]), codfreq1(d[ d.keys()[0] ][i:i+3]), codfreq2(d[ d.keys()[0] ][i:i+3]) ]
-#     synsite = sum(freqs)
-#     nonsite = seqlen-synsite
-#     var_s = [ var[pos.index(i)] for i in synonymous ]
-#     var_n = [ var[pos.index(i)] for i in zerofold ]
-#     return var_s, var_n, synsite, nonsite, nstops
