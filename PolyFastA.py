@@ -7,15 +7,22 @@ import math
 import os
 import sys
 import re
+import numpy as np
+import fileinput
 
 def main():
     # parse arguments
     parser = argparse.ArgumentParser(prog="PolyFastA.py",
     formatter_class=argparse.RawTextHelpFormatter,
     description="""
-    Fast estimator of nucleotide diversity (pi), theta, and Tajimas\'s D
-    based on the site frequency spectrum.\n""",
+    Fast estimator of nucleotide diversity (theta_pi),
+    Watterson's theta (theta_w), and Tajimas\'s D for coding and
+    non-coding sequences\n""",
     epilog="""
+
+    It can also print a vector of the folded site frequency spectrum and
+    correct theta_pi for multiple hits (jukes-cantor).
+
     Examples:
     python PolyFastA.py -f myAlignment.fas -p pop1,pop2
     \"-p pop1,pop2\" assumes that the alignment has sequences that are labeled:
@@ -90,7 +97,7 @@ def main():
                 args.file = args.name
         # read data and get alignment length
         d = readfasta(args.file, args.pipe)
-        seqlen = map(lambda x: len(d[x]), d.keys())
+        seqlen = list(map(lambda x: len(d[x]), d.keys()))
         if all_same(seqlen):
             seqlen = seqlen[0]
         else:
@@ -119,7 +126,7 @@ def main():
                 parser.error("Multiple files cannot be used with the --pipe argument.")
             d = readfasta(file, args.pipe)
             file = file.split('/')[-1]
-            seqlen = map(lambda x: len(d[x]), d.keys())
+            seqlen = list(map(lambda x: len(d[x]), d.keys()))
             if all_same(seqlen):
                 seqlen = seqlen[0]
             else:
@@ -145,35 +152,32 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
     def no_header(d, seqlen, cds, out, aow, file, pop):
         pos,var = getvarsites(d,seqlen)
         if cds:
-            N = len(d)
             s,n,ssites,nstops = var_site_class(d, seqlen)
-            ssites = ssites+len(s)
             nsites = seqlen-ssites
             var_s = [ var[pos.index(x)] for x in s ]
             var_n = [ var[pos.index(x)] for x in n ]
-            ssfs = getsfs(var_s)
-            nsfs = getsfs(var_n)
-            ply_s = polymorphism(ssfs,N,ssites,var_s,jc)
-            ply_n = polymorphism(ssfs,N,nsites,var_n,jc)
+            # ssfs = getsfs(var_s)
+            # nsfs = getsfs(var_n)
+            ply_s = polymorphism(var_s,ssites,jc)
+            ply_n = polymorphism(var_n,nsites,jc)
             if len(out) != 0:
                 with open(out,aow) as o:
                     if not silent:
                         sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n" % (out,pop,file)),
                         sys.stdout.flush()
-                    o.write(f"{file},{seqlen},{pop},{N},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
+                    o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
             else:
-                print(f"{file},{seqlen},{pop},{N},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
+                print(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
         else:
-            N = len(d)
-            ply = polymorphism(getsfs(var),N,seqlen,var,jc)
+            ply = polymorphism(var,seqlen,jc)
             if len(out) != 0:
                 with open(out,aow) as o:
                     if not silent:
                         sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
                         sys.stdout.flush()
-                    o.write(f"{file},{seqlen},{pop},{N},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
+                    o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
             else:
-                print(f"{file},{seqlen},{pop},{N},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
+                print(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
     if silent:
         no_header(d, seqlen, cds, out, aow, file, pop)
     else:
@@ -234,32 +238,42 @@ def getvarsites(d, seqlen):
 
 def getsfs(var):
     N = len(var[0])
-    sfs = [ 0 for i in range(N/2) ]
+    sfs = [ 0 for i in range(int(N/2)) ]
     for v in var:
         a = list(set(v))
         a = filter(lambda x: 'A' in x or 'C' in x or 'T' in x or 'G' in x, a)
-        cm = sorted(map(lambda x: v.count(x), a), reverse=True)
+        cm = sorted(list(map(lambda x: v.count(x), a)), reverse=True)
         sfs[cm[1]-1] += 1
     return sfs
 
 def var_site_class(d, seqlen):
+    stop_cod = ['TGA','TAA','TAG'] # stop codons, Universal Genetic Code
+    # vector of every third position
     everythird = range(0,seqlen,3)
-    count_invariant_syn = 0.0
+    # start synonymous site counter
+    count_syn = 0.0
+    # for storing N and S positions
     S = []
     N = []
-    nstops = 0
     aamat = syn_nonsyn_matrix()
-    for cp in everythird:
-        cod = map(lambda x: d[x][cp:cp+3], d.keys())
-        cod = list(set(cod))
-        cod,nstops = delstop(cod,nstops)
-        if len(cod) == 1:
-            count_invariant_syn += codfreq(cod[0])
-        elif len(cod) == 2:
+    # split into codons
+    cods = [ list(set(map(lambda x: d[x][cp:cp+3], d.keys()))) for cp in everythird ]
+    # count stop codons
+    nstops = len([ cod for cod in cods if any([ c in stop_cod for c in cod ]) ])
+    # remove stop codons
+    cods = [ cod for cod in cods if not any([ c in stop_cod for c in cod ]) ]
+    # count synonymous sites
+    for cod in cods: count_syn += sum([ syncodfreq(c) for c in cod ])/len(cod)
+    # # keep variable codons
+    # cods = [ cod for cod in cods if len(cod) > 1 ]
+    for i in range(len(cods)):
+        cod = cods[i]
+        cp = i*3
+        if len(cod) == 2:
             if aamat[cod[0]][cod[1]]['S']:
-                map(lambda x: S.append(cp+x), aamat[cod[0]][cod[1]]['S'])
+                _ = [ S.append(cp+x) for x in aamat[cod[0]][cod[1]]['S'] ]
             if aamat[cod[0]][cod[1]]['N']:
-                map(lambda x: N.append(cp+x), aamat[cod[0]][cod[1]]['N'])
+                _ = [ N.append(cp+x) for x in aamat[cod[0]][cod[1]]['N'] ]
         elif len(cod) > 2:
             p = {'S':[0,0,0],'N':[0,0,0]}
             for i in range(len(cod)):
@@ -277,49 +291,51 @@ def var_site_class(d, seqlen):
                         S.append(cp+i)
                     elif p['S'][i] == 0:
                         N.append(cp+i)
-    return S,N,count_invariant_syn,nstops
+    return S,N,count_syn,nstops
 
-def polymorphism(sfs,N,seqlen,var,jc):
+def nucleotide_diversity(var):
+    def sum_P_ij2(x):
+        a = list(set(x))
+        n = len(x)
+        return sum([ (x.count(j)/n) ** 2 for j in a ])
+    N = len(var[0])
+    p = sum([ 1 - sum_P_ij2(x) for x in var ])
+    pi = N/(N-1) * p
+    return pi
+
+def wattersons_theta(var):
+    N = len(var[0])
+    a1 = sum([ 1/i for i in range(1,N)])
+    return len(var)/a1
+
+def jukes_cantor_correction(x):
+    return -0.75*math.log(1-(4./3.)*x)
+
+def polymorphism(var, seqlen, jc):
     if len(var) == 0:
         return 0,0,0,"NA"
     else:
-        ss = sum(sfs)
-        a1,dv = Dvar(N,ss)
-        pi = (2.0/(N*(N-1.0)))*sum( map(lambda i: sfs[i]*(i+1)*(N-(i+1)), range(len(sfs))) )
-        th = float(ss)/a1
+        th_pi = nucleotide_diversity(var)
+        th_wa = wattersons_theta(var)
         try:
-            D = (pi-th)/dv
+            D = (th_pi - th_wa) / Dvar(var)
         except ZeroDivisionError:
             D = "NA"
         if jc:
             try:
-                pi = nuc_div_jc(var,N,seqlen)
+                th_pi_site = jukes_cantor_correction(th_pi/seqlen)
             except:
-                pi = "Inf"
-            return ss,pi,th/seqlen,D
+                th_pi_site = "Inf"
         else:
-            return ss,pi/seqlen,th/seqlen,D
+            th_pi_site = th_pi/seqlen
+        th_wa_site = th_wa/seqlen
+        return len(var),th_pi_site,th_wa_site,D
 
-def nuc_div_jc(var, N, seqlen):
-    def jc(x):
-        return -0.75*math.log(1-(4./3.)*x)
-    var2 = [ [ v[l] for v in var ] for l in range(len(var[0])) ] # transpose
-    pwdif = []
-    for i in range(len(var2)):
-        k = i+1
-        for j in range(k,len(var2)):
-            if i != len(var2):
-                count = 0
-                for d in zip(var2[i],var2[j]):
-                    if (d[0] in 'ACGT' and d[1] in 'ACGT') and d[0] != d[1]:
-                        count += 1
-                pwdif += [count]
-    pwdif_jc = map(jc, [ float(x)/float(seqlen) for x in pwdif ])
-    return (2.0/(N*(N-1.0)))*sum(pwdif_jc)
-
-def Dvar(N,ss):
-    a1 = sum(map(lambda x: 1.0/x, range(1,N)))
-    a2 = sum(map(lambda x: 1.0/(x**2), range(1,N)))
+def Dvar(var):
+    N = len(var[0])
+    ss = len(var)
+    a1 = sum(list(map(lambda x: 1.0/x, range(1,N))))
+    a2 = sum(list(map(lambda x: 1.0/(x**2), range(1,N))))
     b1 = (N+1.0)/(3.0*(N-1.0))
     b2 = (2.0*((N**2.0)+N+3.0))/(9.0*N*(N-1.0))
     c1 = b1 - (1/a1)
@@ -327,29 +343,29 @@ def Dvar(N,ss):
     e1 = c1/a1
     e2 = c2/((a1**2)+a2)
     Dv = math.sqrt((e1*ss)+(e2*ss*(ss-1)))
-    return a1,Dv
+    return Dv
 
-def codfreq(cod):
+def syncodfreq(cod):
     freq = {
-    'TTT' : 0.5,  'TCT' : 1.,'TAT' : 0.5,'TGT' : 0.5,
-    'TTC' : 0.5,  'TCC' : 1.,'TAC' : 0.5,'TGC' : 0.5,
-    'TTA' : 1.0,  'TCA' : 1.,'TAA' : 0,  'TGA' : 0,
-    'TTG' : 1.0,  'TCG' : 1.,'TAG' : 0,  'TGG' : 0,
+    'TTT' : 1/3, 'TCT' : 1.,'TAT' : 1/3,'TGT' : 1/3,
+    'TTC' : 1/3, 'TCC' : 1.,'TAC' : 1/3,'TGC' : 1/3,
+    'TTA' : 2/3, 'TCA' : 1.,'TAA' : 0,  'TGA' : 0,
+    'TTG' : 2/3, 'TCG' : 1.,'TAG' : 0,  'TGG' : 0,
 
-    'CTT' : 1.,   'CCT' : 1.,'CAT' : 0.5,'CGT' : 1.,
-    'CTC' : 1.,   'CCC' : 1.,'CAC' : 0.5,'CGC' : 1.,
-    'CTA' : 1.5,  'CCA' : 1.,'CAA' : 0.5,'CGA' : 1.5,
-    'CTG' : 1.5,  'CCG' : 1.,'CAG' : 0.5,'CGG' : 1.5,
+    'CTT' : 1.,   'CCT' : 1.,'CAT' : 1/3,'CGT' : 1.,
+    'CTC' : 1.,   'CCC' : 1.,'CAC' : 1/3,'CGC' : 1.,
+    'CTA' : 4/3, 'CCA' : 1.,'CAA' : 1/3,'CGA' : 4/3,
+    'CTG' : 4/3, 'CCG' : 1.,'CAG' : 1/3,'CGG' : 4/3,
 
-    'ATT' : 2./3., 'ACT' : 1.,'AAT' : 0.5,'AGT' : 0.5,
-    'ATC' : 2./3., 'ACC' : 1.,'AAC' : 0.5,'AGC' : 0.5,
-    'ATA' : 2./3., 'ACA' : 1.,'AAA' : 0.5,'AGA' : 1.0,
-    'ATG' : 0,     'ACG' : 1.,'AAG' : 0.5,'AGG' : 1.0,
+    'ATT' : 2/3, 'ACT' : 1.,'AAT' : 1/3,'AGT' : 1/3,
+    'ATC' : 2/3, 'ACC' : 1.,'AAC' : 1/3,'AGC' : 1/3,
+    'ATA' : 2/3, 'ACA' : 1.,'AAA' : 1/3,'AGA' : 2/3,
+    'ATG' : 0,   'ACG' : 1.,'AAG' : 1/3,'AGG' : 2/3,
 
-    'GTT' : 1.,  'GCT' : 1.,'GAT' : 0.5,'GGT' : 1.,
-    'GTC' : 1.,  'GCC' : 1.,'GAC' : 0.5,'GGC' : 1.,
-    'GTA' : 1.,  'GCA' : 1.,'GAA' : 0.5,'GGA' : 1.,
-    'GTG' : 1.,  'GCG' : 1.,'GAG' : 0.5,'GGG' : 1.}
+    'GTT' : 1.,  'GCT' : 1.,'GAT' : 1/3,'GGT' : 1.,
+    'GTC' : 1.,  'GCC' : 1.,'GAC' : 1/3,'GGC' : 1.,
+    'GTA' : 1.,  'GCA' : 1.,'GAA' : 1/3,'GGA' : 1.,
+    'GTG' : 1.,  'GCG' : 1.,'GAG' : 1/3,'GGG' : 1.}
     return freq[cod]
 
 def delstop(codons,nstops):
@@ -370,12 +386,15 @@ def tstv(var):
             tv += [i]
     return ts,tv
 
+def choose_n(k, n=2):
+    return int(k*(k-1)/n)
+
 def all_same(items):
-    return all(x == items[0] for x in items)
+    return all([ x == items[0] for x in items ])
 
 def wrapseq(seq):
     chunks = []
-    interval = map(lambda x: x*100, range((len(seq)/100)+2))
+    interval = list(map(lambda x: x*100, range((len(seq)/100)+2)))
     for i in interval:
         if i != interval[-1]:
             chunks.append(seq[i:interval[interval.index(i)+1]-1])
