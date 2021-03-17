@@ -152,32 +152,52 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
     def no_header(d, seqlen, cds, out, aow, file, pop):
         pos,var = getvarsites(d,seqlen)
         if cds:
-            s,n,ssites,nstops = var_site_class(d, seqlen)
-            nsites = seqlen-ssites
-            var_s = [ var[pos.index(x)] for x in s ]
-            var_n = [ var[pos.index(x)] for x in n ]
-            # ssfs = getsfs(var_s)
-            # nsfs = getsfs(var_n)
-            ply_s = polymorphism(var_s,ssites,jc)
-            ply_n = polymorphism(var_n,nsites,jc)
-            if len(out) != 0:
-                with open(out,aow) as o:
-                    if not silent:
-                        sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n" % (out,pop,file)),
-                        sys.stdout.flush()
-                    o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
+            if len(var) == 0:
+                if len(out) != 0:
+                    with open(out,aow) as o:
+                        if not silent:
+                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
+                            sys.stdout.flush()
+                        o.write(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}\n")
+                else:
+                    print(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}")
             else:
-                print(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
+                s,n,ssites,nstops = var_site_class(d, seqlen)
+                nsites = seqlen-ssites
+                var_s = [ var[pos.index(x)] for x in s ]
+                var_n = [ var[pos.index(x)] for x in n ]
+                # ssfs = getsfs(var_s)
+                # nsfs = getsfs(var_n)
+                ply_s = polymorphism(var_s,ssites,jc)
+                ply_n = polymorphism(var_n,nsites,jc)
+                if len(out) != 0:
+                    with open(out,aow) as o:
+                        if not silent:
+                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n" % (out,pop,file)),
+                            sys.stdout.flush()
+                        o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
+                else:
+                    print(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
         else:
-            ply = polymorphism(var,seqlen,jc)
-            if len(out) != 0:
-                with open(out,aow) as o:
-                    if not silent:
-                        sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
-                        sys.stdout.flush()
-                    o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
+            if len(var) == 0:
+                if len(out) != 0:
+                    with open(out,aow) as o:
+                        if not silent:
+                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
+                            sys.stdout.flush()
+                        o.write(f"{file},{seqlen},{pop},{len(d)},{no_var()}\n")
+                else:
+                    print(f"{file},{seqlen},{pop},{len(d)},{no_var()}")
             else:
-                print(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
+                ply = polymorphism(var,seqlen,jc)
+                if len(out) != 0:
+                    with open(out,aow) as o:
+                        if not silent:
+                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
+                            sys.stdout.flush()
+                        o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
+                else:
+                    print(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
     if silent:
         no_header(d, seqlen, cds, out, aow, file, pop)
     else:
@@ -293,6 +313,9 @@ def var_site_class(d, seqlen):
                         N.append(cp+i)
     return S,N,count_syn,nstops
 
+def no_var():
+    return "0,0,0,NA"
+
 def nucleotide_diversity(var):
     def sum_P_ij2(x):
         a = list(set(x))
@@ -312,24 +335,21 @@ def jukes_cantor_correction(x):
     return -0.75*math.log(1-(4./3.)*x)
 
 def polymorphism(var, seqlen, jc):
-    if len(var) == 0:
-        return 0,0,0,"NA"
-    else:
-        th_pi = nucleotide_diversity(var)
-        th_wa = wattersons_theta(var)
+    th_pi = nucleotide_diversity(var)
+    th_wa = wattersons_theta(var)
+    try:
+        D = (th_pi - th_wa) / Dvar(var)
+    except ZeroDivisionError:
+        D = "NA"
+    if jc:
         try:
-            D = (th_pi - th_wa) / Dvar(var)
-        except ZeroDivisionError:
-            D = "NA"
-        if jc:
-            try:
-                th_pi_site = jukes_cantor_correction(th_pi/seqlen)
-            except:
-                th_pi_site = "Inf"
-        else:
-            th_pi_site = th_pi/seqlen
-        th_wa_site = th_wa/seqlen
-        return len(var),th_pi_site,th_wa_site,D
+            th_pi_site = jukes_cantor_correction(th_pi/seqlen)
+        except:
+            th_pi_site = "Inf"
+    else:
+        th_pi_site = th_pi/seqlen
+    th_wa_site = th_wa/seqlen
+    return len(var),th_pi_site,th_wa_site,D
 
 def Dvar(var):
     N = len(var[0])
