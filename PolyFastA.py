@@ -49,8 +49,8 @@ def main():
 
     The format is not strict but the identifier (e.g. pop1) needs to be somewhere in the header.\n""")
     parser.add_argument(
-    '--file', '-f', type=str, default="",
-    help='an alignment in FASTA format.')
+    '--file', '-f', nargs="*", type=str, default="",
+    help='one or several alignment files in FASTA format.')
     parser.add_argument(
     '--dir', '-d', type=str, default=".",
     help='directory containing FASTA files only.')
@@ -76,75 +76,54 @@ def main():
     '--jc', action="store_true", default=False,
     help='Jukes-Cantor correction for Pi.')
 
-    args = parser.parse_args()
     # process arguments
-    r = None
+    args = parser.parse_args()
+
+    r = None # empry response variable
+    # check file and dir arguments
     if args.file == ''  and args.dir == '.' and not args.pipe:
         print("Both --file/-f and --dir/-d were not found.")
         r = input("Do you wish to run polySFS on all files in the current directory? [y|n]: ")
         if r != 'y':
             parser.error(parser.print_help())
+    # stop if both dir and file are provided
     if len(args.file) != 0 and args.dir != '.':
         parser.error("Run with either --file/-f or --dir/-d, but not both")
-    elif (len(args.file) != 0 and args.dir == '.') or args.pipe:
-        if args.pipe:
-            if not args.name:
-                args.file = "stdin"
-            else:
-                args.file = args.name
+    # if only dir is provided
+    elif len(args.file) == 0 and args.dir != '.':
+        args.file = [ args.dir + "/" + i for i in os.listdir(args.dir) ]
+    # if only stdin is provided
+    elif len(args.file) == 0 and args.dir == '.' and args.pipe:
+        if not args.name:
+            args.file = ["stdin"]
         else:
-            if args.name:
-                args.file = args.name
-        # read data and get alignment length
-        d = readfasta(args.file, args.pipe)
+            args.file = [args.name]
+    # read data and get alignment length
+    if not args.silent:
+        print_result({}, "", args.cds, args.out, "w", args.file, "NA", args.silent, 1, args.jc)
+    for file in args.file:
+        if len(args.file) > 0  and args.pipe and not (args.file[0] == "stdin" or args.file[0] == args.name):
+            parser.error("A FASTA file or multiple files cannot be used with the --pipe argument.")
+        d = readfasta(file, args.pipe)
+        file = file.split('/')[-1]
         seqlen = list(map(lambda x: len(d[x]), d.keys()))
         if all_same(seqlen):
             seqlen = seqlen[0]
         else:
             parser.error("Sequences do not have the same length.")
         if args.cds and (seqlen % 3) != 0:
-            parser.error("CDS sequence length is not a multiple of 3.")
+            parser.error(f"CDS sequence length is not a multiple of 3: {file}")
         if not args.pops:
-            print_result(d, seqlen, args.cds, args.out, "w", args.file, "NA", args.silent, 2, args.jc)
+            print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
         else:
             popkeys = args.pops.split(',')
-            if not args.silent:
-                print_result({}, "", args.cds, args.out, "w", args.file, "NA", args.silent, 1, args.jc)
             for pop in popkeys:
                 grp = filter(lambda x: pop in x, d.keys())
                 if len(grp) == 0:
                     print(f"Pop {pop} string was not found in fasta headers.")
                     continue
-                dgrp = {k:d[k] for k in grp}
-                print_result(dgrp, seqlen, args.cds, args.out, "a", args.file, pop, args.silent, 0, args.jc)
-    elif len(args.file) == 0 and args.dir != '.' or r:
-        files = [ args.dir + "/" + i for i in os.listdir(args.dir) ]
-        if not args.silent:
-            print_result({}, "", args.cds, args.out, "w", args.file, "NA", args.silent, 1, args.jc)
-        for file in files:
-            if args.pipe:
-                parser.error("Multiple files cannot be used with the --pipe argument.")
-            d = readfasta(file, args.pipe)
-            file = file.split('/')[-1]
-            seqlen = list(map(lambda x: len(d[x]), d.keys()))
-            if all_same(seqlen):
-                seqlen = seqlen[0]
-            else:
-                parser.error("Sequences do not have the same length.")
-            if args.cds and (seqlen % 3) != 0:
-                parser.error(f"CDS sequence length is not a multiple of 3: {file}")
-            if not args.pops:
-                print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
-            else:
-                popkeys = args.pops.split(',')
-                for pop in popkeys:
-                    grp = filter(lambda x: pop in x, d.keys())
-                    if len(grp) == 0:
-                        print(f"Pop {pop} string was not found in fasta headers.")
-                        continue
-                    dgrp = {k: d[k] for k in grp}
-                    print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
-
+                dgrp = {k: d[k] for k in grp}
+                print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
 
 # functions
 
@@ -335,21 +314,24 @@ def jukes_cantor_correction(x):
     return -0.75*math.log(1-(4./3.)*x)
 
 def polymorphism(var, seqlen, jc):
-    th_pi = nucleotide_diversity(var)
-    th_wa = wattersons_theta(var)
-    try:
-        D = (th_pi - th_wa) / Dvar(var)
-    except ZeroDivisionError:
-        D = "NA"
-    if jc:
-        try:
-            th_pi_site = jukes_cantor_correction(th_pi/seqlen)
-        except:
-            th_pi_site = "Inf"
+    if len(var) == 0:
+        return 0,0,0,"NA"
     else:
-        th_pi_site = th_pi/seqlen
-    th_wa_site = th_wa/seqlen
-    return len(var),th_pi_site,th_wa_site,D
+        th_pi = nucleotide_diversity(var)
+        th_wa = wattersons_theta(var)
+        try:
+            D = (th_pi - th_wa) / Dvar(var)
+        except ZeroDivisionError:
+            D = "NA"
+        if jc:
+            try:
+                th_pi_site = jukes_cantor_correction(th_pi/seqlen)
+            except:
+                th_pi_site = "Inf"
+        else:
+            th_pi_site = th_pi/seqlen
+        th_wa_site = th_wa/seqlen
+        return len(var),th_pi_site,th_wa_site,D
 
 def Dvar(var):
     N = len(var[0])
