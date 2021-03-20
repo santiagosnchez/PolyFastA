@@ -141,12 +141,14 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                 else:
                     print(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}")
             else:
-                s,n,ssites,nstops = var_site_class(d, seqlen)
+                # get synonymous and non-synonymous sites
+                ssites,s,n,nstops = getvarCDSsites(d, seqlen)
+                # remainder non-synonymous sites
                 nsites = seqlen-ssites
-                var_s = [ var[pos.index(x)] for x in s ]
-                var_n = [ var[pos.index(x)] for x in n ]
-                # ssfs = getsfs(var_s)
-                # nsfs = getsfs(var_n)
+                # match up all var sites with syn and nonsyn
+                var_s = [ var[pos.index(i)] for i in s if i in pos ]
+                var_n = [ var[pos.index(i)] for i in n if i in pos ]
+                # polymorphism
                 ply_s = polymorphism(var_s,ssites,jc)
                 ply_n = polymorphism(var_n,nsites,jc)
                 if len(out) != 0:
@@ -235,6 +237,17 @@ def getvarsites(d, seqlen):
             pos.append(p)
     return pos,var
 
+def gethaplotypes(d, seqlen):
+    var = []
+    pos = []
+    for p in range(seqlen):
+        site = [ d[x][p:p+1] for x in d.keys() ]
+        #if not all_same(site):
+        if len(set(site)) > 1: # all var sites
+            var.append(site)
+            pos.append(p)
+    return pos,list(map(list, zip(*var)))
+
 def getsfs(var):
     N = len(var[0])
     sfs = [ 0 for i in range(int(N/2)) ]
@@ -245,64 +258,154 @@ def getsfs(var):
         sfs[cm[1]-1] += 1
     return sfs
 
-def var_site_class(d, seqlen):
+def getvarCDSsites(d, seqlen):
     stop_cod = ['TGA','TAA','TAG'] # stop codons, Universal Genetic Code
     # vector of every third position
     everythird = range(0,seqlen,3)
     # start synonymous site counter
     count_syn = 0.0
-    # for storing N and S positions
-    S = []
-    N = []
-    aamat = syn_nonsyn_matrix()
     # split into codons
     cods = [ list(set(map(lambda x: d[x][cp:cp+3], d.keys()))) for cp in everythird ]
     # count stop codons
     nstops = len([ cod for cod in cods if any([ c in stop_cod for c in cod ]) ])
     # remove stop codons
-    cods = [ cod for cod in cods if not any([ c in stop_cod for c in cod ]) ]
+    codsnpos = [ cod for cod in zip(cods,everythird) if not any([ c in stop_cod for c in cod ]) ]
     # count synonymous sites
-    for cod in cods: count_syn += sum([ syncodfreq(c) for c in cod ])/len(cod)
-    # # keep variable codons
-    # cods = [ cod for cod in cods if len(cod) > 1 ]
-    for i in range(len(cods)):
-        cod = cods[i]
-        cp = i*3
-        if len(cod) == 2:
-            if aamat[cod[0]][cod[1]]['S']:
-                _ = [ S.append(cp+x) for x in aamat[cod[0]][cod[1]]['S'] ]
-            if aamat[cod[0]][cod[1]]['N']:
-                _ = [ N.append(cp+x) for x in aamat[cod[0]][cod[1]]['N'] ]
-        elif len(cod) > 2:
-            p = {'S':[0,0,0],'N':[0,0,0]}
-            for i in range(len(cod)):
-                for j in range(i+1, len(cod)):
-                    if i != len(cod):
-                        if aamat[cod[i]][cod[j]]['S']:
-                            for k in aamat[cod[i]][cod[j]]['S']:
-                                p['S'][k] += 1
-                        if aamat[cod[i]][cod[j]]['N']:
-                            for k in aamat[cod[i]][cod[j]]['N']:
-                                p['N'][k] += 1
-            for i in range(3):
-                if p['S'][i]+p['N'][i] == 2 or p['S'][i]+p['N'][i] == 1:
-                    if p['N'][i] == 0:
-                        S.append(cp+i)
-                    elif p['S'][i] == 0:
-                        N.append(cp+i)
-    return S,N,count_syn,nstops
+    for cod in codsnpos: count_syn += sum([ syncodfreq(c) for c in cod[0] ])/len(cod[0])
+    # keep variable codons and positoons
+    codsnpos = [ cod for cod in codsnpos if len(cod[0]) > 1 ]
+    # extract synonymous and non-synonymous positions
+    S = sum([ get_syn_nonsyn_cod_sites(cod)[0] for cod in codsnpos ], [])
+    N = sum([ get_syn_nonsyn_cod_sites(cod)[1] for cod in codsnpos ], [])
+    return count_syn,S,N,nstops
+
+
+# new function for S and N codon positions
+def get_syn_nonsyn_cod_sites(cod):
+    S,N = [],[]
+    # universal genetic code
+    gc = {
+     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T',  'ACC': 'T',  'ACG': 'T',  'ACT': 'T', 'AGA': 'R2',  'AGC': 'S2', 'AGG': 'R2', 'AGT': 'S2', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
+     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P',  'CCC': 'P',  'CCG': 'P',  'CCT': 'P', 'CGA': 'R4',  'CGC': 'R4',  'CGG': 'R4', 'CGT': 'R4',  'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
+     'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A',  'GCC': 'A',  'GCG': 'A',  'GCT': 'A', 'GGA': 'G',  'GGC': 'G',  'GGG': 'G', 'GGT': 'G',  'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
+                 'TAC': 'Y',             'TAT': 'Y', 'TCA': 'S4', 'TCC': 'S4', 'TCG': 'S4', 'TCT': 'S4',             'TGC': 'C',  'TGG': 'W', 'TGT': 'C',  'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
+    # degenerancy dictionary
+    aa_degen = {
+     'K': '2fAG', 'N': '2fCT', 'T':  '4f', 'R2': '2fAG',  'S2': '2fCT', 'S2': '2fCT', 'I': '3f', 'M': '0f',
+     'Q': '2fAG', 'H': '2fCT', 'P':  '4f', 'R4': '4f',    'L': '4f',
+     'E': '2fAG', 'D': '2fCT', 'A':  '4f', 'G':  '4f',    'V': '4f',
+                  'Y': '2fCT', 'S4': '4f', 'C':  '2fCT',  'W': '0f',    'F': '2fCT', 'L':  '2fAG'}
+    # keep only complete codons
+    cod = [[ c for c in cod[0] if gc.get(c) ], cod[1]]
+    # check if any codons left
+    if len(cod[0]) <= 1:
+        return S,N
+    else:
+        # vector with variable positions
+        vcp = []
+        vcb = []
+        for i in range(3):
+            codbase = [ c[i] for c in cod[0] ]
+            if not all_same(codbase):
+                vcp.append(i)
+                vcb.append(list(set(codbase)))
+        # test codons
+        # get amino acids
+        aa = [ gc[i] for i in cod[0] ]
+        # first synonymous
+        if all_same(aa):
+            S += [ i + cod[1] for i in vcp ]
+        # everything else
+        else:
+            # R2 synonymous at position 1
+            if any([ a == "R1" for a in aa ]) and any([ a == "R2" for i in aa ]) and not any([i == 2 for i in vcp]):
+                if len(cod[0]) == 2:
+                    # if only R1 and R2
+                    S.append(vcp[0] + cod[1])
+                else:
+                    if len(vcb[0]) == 2:
+                        # if there are only two bases at possition 1
+                        S.append(vcp[0] + cod[1])
+                    else:
+                        # treat all changes in position 1 as non-synonymous
+                        # even if there is one R2 polymorphism
+                        N += [ i + cod[1] for i in vcp ]
+            else:
+                # check mixed synonymous and non-synonymous changes
+                if len(list(set(aa))) < len(aa):
+                    # found synonymous
+                    syn = {}
+                    for a in aa:
+                        if syn.get(a):
+                            syn[a] += 1
+                        else:
+                            syn[a] = 1
+                    c = sorted(list(syn.values()))
+                    if max(c) >= len(vcb[-1]):
+                        S.append(vcp[-1] + cod[1])
+                    if len(vcp) > 1:
+                        N += [ i + cod[1] for i in vcp[:-1] ]
+                else:
+                    N += [ i + cod[1] for i in vcp ]
+            # vectors of synonymous and nonsynonymous changes
+        return S,N
 
 def no_var():
     return "0,0,0,NA"
 
+# standard estimation based on Nei and Li 1979
+# based on differences and frequency of haplotypes
+def nucleotide_diversity2(haplo, seqlen):
+    def nt_diff(i, j, haplo):
+        return sum([ haplo[i][d] != haplo[j][d] for d in range(len(haplo[i])) ])
+
+    def haplo_freqs(haplo):
+        count = {}
+        for h in [ ''.join(x) for x in haplo ]:
+            if count.get(h):
+                count[h] += 1
+            else:
+                count[h] = 1
+        prop = { h:count[h]/len(haplo) for h in count_haplo.keys() }
+        return prop
+
+    N = len(haplo)
+    p = []
+    freqs = haplo_freqs(haplo)
+    for i,j in itertools.combinations(range(N), 2):
+        h_i = ''.join(haplo[i])
+        h_j = ''.join(haplo[j])
+        p.append(freqs[h_i] * freqs[h_j] * (nt_diff(i, j, haplo)/seqlen))
+    pi = 2 * sum(p)
+    return pi
+
+# based on Tajima 1989
+# average number of pairwise haplotype differences
+# identical to per site estimation
+def nucleotide_diversity3(haplo):
+    def nt_diff(i, j, haplo):
+        return sum([ haplo[i][d] != haplo[j][d] for d in range(len(haplo[i])) ])
+
+    N = len(haplo)
+    p = 0
+    pw = list(itertools.combinations(range(N), 2))
+    for i,j in pw:
+        h_i = ''.join(haplo[i])
+        h_j = ''.join(haplo[j])
+        p += nt_diff(i, j, haplo)
+    pi = p / len(pw)
+    return pi
+
+# based on the Tajima 1989 and Cutter 2019
+# per site measure of heterozygosity
+# scaled by sample size
 def nucleotide_diversity(var):
     def sum_P_ij2(x):
         a = list(set(x))
         n = len(x)
         return sum([ (x.count(j)/n) ** 2 for j in a ])
     N = len(var[0])
-    p = sum([ 1 - sum_P_ij2(x) for x in var ])
-    pi = N/(N-1) * p
+    pi = N/(N-1) * sum([ 1 - sum_P_ij2(x) for x in var ])
     return pi
 
 def wattersons_theta(var):
@@ -327,7 +430,7 @@ def polymorphism(var, seqlen, jc):
             try:
                 th_pi_site = jukes_cantor_correction(th_pi/seqlen)
             except:
-                th_pi_site = "Inf"
+                th_pi_site = th_pi/seqlen
         else:
             th_pi_site = th_pi/seqlen
         th_wa_site = th_wa/seqlen
@@ -401,252 +504,6 @@ def wrapseq(seq):
         if i != interval[-1]:
             chunks.append(seq[i:interval[interval.index(i)+1]-1])
     return("\n".join(chunks))
-
-def syn_nonsyn_matrix(aa=None, degen=None):
-    # universal genetic code
-    gc = {
-     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T', 'ACC': 'T', 'ACG': 'T', 'ACT': 'T', 'AGA': 'R', 'AGC': 'S', 'AGG': 'R', 'AGT': 'S', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
-     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P', 'CCC': 'P', 'CCG': 'P', 'CCT': 'P', 'CGA': 'R', 'CGC': 'R', 'CGG': 'R', 'CGT': 'R', 'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
-     'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A', 'GCC': 'A', 'GCG': 'A', 'GCT': 'A', 'GGA': 'G', 'GGC': 'G', 'GGG': 'G', 'GGT': 'G', 'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
-     'TAA': 'stop', 'TAC': 'Y', 'TAG': 'stop', 'TAT': 'Y', 'TCA': 'S', 'TCC': 'S', 'TCG': 'S', 'TCT': 'S', 'TGA': 'stop', 'TGC': 'C', 'TGG': 'W', 'TGT': 'C', 'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
-    # degenerancy dictionary
-    gc_degen = {
-     'AAA': '2fAG', 'AAC': '2fCT', 'AAG': '2fAG', 'AAT': '2fCT', 'ACA': '4f', 'ACC': '4f', 'ACG': '4f', 'ACT': '4f', 'AGA': '2fAG', 'AGC': '2fCT', 'AGG': '2fAG', 'AGT': '2fCT', 'ATA': '3f', 'ATC': '3f', 'ATG': '0f', 'ATT': '3f',
-     'CAA': '2fAG', 'CAC': '2fCT', 'CAG': '2fAG', 'CAT': '2fCT', 'CCA': '4f', 'CCC': '4f', 'CCG': '4f', 'CCT': '4f', 'CGA': '4f', 'CGC': '4f', 'CGG': '4f', 'CGT': '4f', 'CTA': '4f', 'CTC': '4f', 'CTG': '4f', 'CTT': '4f',
-     'GAA': '2fAG', 'GAC': '2fCT', 'GAG': '2fAG', 'GAT': '2fCT', 'GCA': '4f', 'GCC': '4f', 'GCG': '4f', 'GCT': '4f', 'GGA': '4f', 'GGC': '4f', 'GGG': '4f', 'GGT': '4f', 'GTA': '4f', 'GTC': '4f', 'GTG': '4f', 'GTT': '4f',
-     'TAA': 'stop', 'TAC': '2fCT', 'TAG': 'stop', 'TAT': '2fCT', 'TCA': '4f', 'TCC': '4f', 'TCG': '4f', 'TCT': '4f', 'TGA': 'stop', 'TGC': '2fCT', 'TGG': '0f', 'TGT': '2fCT', 'TTA': '2fAG', 'TTC': '2fCT', 'TTG': '2fAG', 'TTT': '2fCT'}
-    # build codon 64x64 dictionary
-    codons = sorted(gc.keys())
-    aamat = {}
-    c = 0
-    for i in codons:
-        aamat[i] = {}
-        for j in codons:
-            aamat[i][j] = c
-            c += 1
-
-    # propagate mutation
-    for i in range(64):
-        for j in range(64):
-            if codons[i] != codons[j]:
-                # if synonymous
-                if gc[codons[i]] == gc[codons[j]]:
-                    # deal with Leucine
-                    if gc[codons[i]] == 'L':
-                        if gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG':
-                            if codons[i][2] != codons[j][2] and codons[i][0] != codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[0,2],'N':None}
-                            elif codons[i][2] != codons[j][2] and codons[i][0] == codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                            elif codons[i][2] == codons[j][2] and codons[i][0] != codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[0],'N':None}
-                        else:
-                            aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                    # deal with Arginine
-                    elif gc[codons[i]] == 'R':
-                        if gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG':
-                            if codons[i][2] != codons[j][2] and codons[i][0] != codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[0,2],'N':None}
-                            elif codons[i][2] != codons[j][2] and codons[i][0] == codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                            elif codons[i][2] == codons[j][2] and codons[i][0] != codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[0],'N':None}
-                        else:
-                            aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                    # deal with Serine
-                    elif gc[codons[i]] == 'S':
-                        if gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT':
-                            if codons[i][2] != codons[j][2] and codons[i][0] == codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                            elif codons[i][2] == codons[j][2] and codons[i][0] != codons[j][0]:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0,1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0,1]}
-                        else:
-                            aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                    # all others
-                    else:
-                        aamat[codons[i]][codons[j]] = {'S':[2],'N':None}
-                # if non-synonymous
-                else:
-                    # traverse position 1 for T
-                    if codons[i][0] == 'T' and codons[j][0] == 'T':
-                        # 4-fold first
-                        if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second CT
-                        elif gc_degen[codons[i]] == '2fCT' and gc_degen[codons[j]] == '2fCT':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second CT and AG
-                        elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') and (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                            if codons[i][1] != codons[j][1]:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1,2]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[2]}
-                        # Triptophan
-                        elif gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f':
-                            if gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG':
-                                if codons[i][2] != codons[j][2]:
-                                    aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                                else:
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                            elif gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT':
-                                if codons[i][1] != codons[j][1]:
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[1,2]}
-                                else:
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[2]}
-                    # traverse position 1 for C and G
-                    if (codons[i][0] == 'C' and codons[j][0] == 'C') or (codons[i][0] == 'G' and codons[j][0] == 'G'):
-                        # 4-fold first
-                        if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second CT and AG
-                        elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') and (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[2]}
-                    # traverse position 1 for A
-                    if codons[i][0] == 'A' and codons[j][0] == 'A':
-                        # 4-fold first
-                        if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second CT
-                        elif gc_degen[codons[i]] == '2fCT' and gc_degen[codons[j]] == '2fCT':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second AG
-                        elif gc_degen[codons[i]] == '2fAG' and gc_degen[codons[j]] == '2fAG':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        # 2-fold second CT and AG
-                        elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') and (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                            if codons[i][1] != codons[j][1]:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1,2]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[2]}
-                        # 3-fold
-                        elif gc_degen[codons[i]] == '3f' or gc_degen[codons[j]] == '3f':
-                            if codons[i][1] != codons[j][1]:
-                                if codons[i][2] != codons[j][2]:
-                                    aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                                else:
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[2]}
-                        # Methionine
-                        elif (gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f') and (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG'):
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[1]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[1]}
-                        elif (gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f') and (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[1,2]}
-                    # traverse position 2 for T
-                    if (codons[i][1] == 'T' and codons[j][1] == 'T') and (codons[i][0] != codons[j][0]):
-                        # 4-fold first
-                        if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        # 3-fold
-                        elif gc_degen[codons[i]] == '3f' or gc_degen[codons[j]] == '3f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        # Methionine
-                        elif gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f':
-                            if gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT':
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0,2]}
-                            elif gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG':
-                                if codons[i][2] == codons[j][2]:
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                                else:
-                                    aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                    # traverse position 2 for C
-                    if (codons[i][1] == 'C' and codons[j][1] == 'C') and (codons[i][0] != codons[j][0]):
-                        # all 4-fold
-                        if codons[i][2] != codons[j][2]:
-                            aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                        else:
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                    # traverse position 2 for A
-                    if (codons[i][1] == 'A' and codons[j][1] == 'A') and (codons[i][0] != codons[j][0]):
-                        # only 2-fold
-                        if (gc_degen[codons[i]] == '2fCT' and gc_degen[codons[j]] == '2fCT') or (gc_degen[codons[i]] == '2fAG' and gc_degen[codons[j]] == '2fAG'):
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        else:
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[0,2]}
-                    # traverse position 2 for G
-                    if (codons[i][1] == 'G' and codons[j][1] == 'G') and (codons[i][0] != codons[j][0]):
-                        # 4-fold first
-                        if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        # 2-fold second CT
-                        elif gc_degen[codons[i]] == '2fCT' and gc_degen[codons[j]] == '2fCT':
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        # Tryptophan and 2-fold second CT/AG
-                        elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') and (gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f'):
-                            if codons[i][2] != codons[j][2]:
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0]}
-                            else:
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0]}
-                        elif (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT') and (gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f'):
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[0,2]}
-                        # 2-fold second CT and AG
-                        elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') and (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[0,2]}
-                    # mismatch in position 1 and 2
-                    if codons[i][0] != codons[j][0] and codons[i][1] != codons[j][1]:
-                        if codons[i][2] == codons[j][2]:
-                            aamat[codons[i]][codons[j]] = {'S':None,'N':[0,1]}
-                        else:
-                            # 4-fold
-                            if gc_degen[codons[i]] == '4f' or gc_degen[codons[j]] == '4f':
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0,1]}
-                            # 2-fold
-                            elif gc_degen[codons[i]] == '2fCT' and gc_degen[codons[j]] == '2fCT':
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0,1]}
-                            elif gc_degen[codons[i]] == '2fAG' and gc_degen[codons[j]] == '2fAG':
-                                aamat[codons[i]][codons[j]] = {'S':[2],'N':[0,1]}
-                            elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') or (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                                aamat[codons[i]][codons[j]] = {'S':None,'N':[0,1,2]}
-                            # 3-fold
-                            elif gc_degen[codons[i]] == '3f' or gc_degen[codons[j]] == '3f':
-                                if gc_degen[codons[i]] == '0f' or gc_degen[codons[j]] == '0f':
-                                    aamat[codons[i]][codons[j]] = {'S':None,'N':[0,1,2]}
-                                elif (gc_degen[codons[i]] == '2fAG' or gc_degen[codons[j]] == '2fAG') or (gc_degen[codons[i]] == '2fCT' or gc_degen[codons[j]] == '2fCT'):
-                                    aamat[codons[i]][codons[j]] = {'S':[2],'N':[0,1]}
-    if aa:
-        return gc[aa]
-    elif degen:
-        return gc_degen[degen]
-    else:
-        return aamat
 
 if __name__ == '__main__':
     main()
