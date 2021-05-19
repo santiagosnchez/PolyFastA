@@ -142,9 +142,9 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                     print(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}")
             else:
                 # get synonymous and non-synonymous sites
-                ssites,s,n,nstops = getvarCDSsites(d, seqlen)
+                ssites,s,n,nstops,missingsites = getvarCDSsites(d, seqlen)
                 # remainder non-synonymous sites
-                nsites = seqlen-ssites
+                nsites = (seqlen-missingsites)-ssites
                 # match up all var sites with syn and nonsyn
                 var_s = [ var[pos.index(i)] for i in s if i in pos ]
                 var_n = [ var[pos.index(i)] for i in n if i in pos ]
@@ -270,14 +270,24 @@ def getvarCDSsites(d, seqlen):
     nstops = len([ cod for cod in cods if any([ c in stop_cod for c in cod ]) ])
     # remove stop codons
     codsnpos = [ cod for cod in zip(cods,everythird) if not any([ c in stop_cod for c in cod ]) ]
+    # start del cod pos
+    missingcodpos = 0
+    codsnpos_clean = []
+    # check codons
+    for codpos in codsnpos:
+        tmp = [ cod for cod in codpos[0] if re.match("^[AGTC][AGTC][AGTC]$", cod)]
+        if len(tmp) > 0:
+            codsnpos_clean += [[tmp, codpos[1]]]
+        else:
+            missingcodpos += 3
     # count synonymous sites
-    for cod in codsnpos: count_syn += sum([ syncodfreq(c) for c in cod[0] ])/len(cod[0])
-    # keep variable codons and positoons
-    codsnpos = [ cod for cod in codsnpos if len(cod[0]) > 1 ]
+    for cod in codsnpos_clean: count_syn += sum([ syncodfreq(c) for c in cod[0] ])/len(cod[0])
+    # keep only variable codons and positions
+    codsnpos_clean = [ cod for cod in codsnpos_clean if len(cod[0]) > 1 ]
     # extract synonymous and non-synonymous positions
     S = sum([ get_syn_nonsyn_cod_sites(cod)[0] for cod in codsnpos ], [])
     N = sum([ get_syn_nonsyn_cod_sites(cod)[1] for cod in codsnpos ], [])
-    return count_syn,S,N,nstops
+    return count_syn,S,N,nstops,missingcodpos
 
 
 # new function for S and N codon positions
