@@ -109,21 +109,35 @@ def main():
         seqlen = list(map(lambda x: len(d[x]), d.keys()))
         if all_same(seqlen):
             seqlen = seqlen[0]
+            if args.cds and (seqlen % 3) != 0:
+                if len(args.out) != 0:
+                    with open(args.out, "a") as o:
+                        o.write(f"# CDS sequence length is not a multiple of 3: {file}\n")
+                else:
+                    print(f"# CDS sequence length is not a multiple of 3: {file}")
+            if not args.pops:
+                print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
+            else:
+                popkeys = args.pops.split(',')
+                for pop in popkeys:
+                    grp = filter(lambda x: pop in x, d.keys())
+                    if len(grp) == 0:
+                        if len(args.out) != 0:
+                            with open(args.out, "a") as o:
+                                o.write(f"# Pop {pop} string was not found in fasta headers.\n")
+                        else:
+                            print(f"# Pop {pop} string was not found in fasta headers.")
+                        continue
+                    dgrp = {k: d[k] for k in grp}
+                    print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
         else:
-            parser.error("Sequences do not have the same length.")
-        if args.cds and (seqlen % 3) != 0:
-            parser.error(f"CDS sequence length is not a multiple of 3: {file}")
-        if not args.pops:
-            print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
-        else:
-            popkeys = args.pops.split(',')
-            for pop in popkeys:
-                grp = filter(lambda x: pop in x, d.keys())
-                if len(grp) == 0:
-                    print(f"Pop {pop} string was not found in fasta headers.")
-                    continue
-                dgrp = {k: d[k] for k in grp}
-                print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
+            if len(args.out) != 0:
+                with open(args.out, "a") as o:
+                    o.write(f"# Sequences do not have the same length: {file}\n")
+            else:
+                print(f"# Sequences do not have the same length: {file}")
+
+
 
 # functions
 
