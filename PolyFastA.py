@@ -149,8 +149,7 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                 if len(out) != 0:
                     with open(out,aow) as o:
                         if not silent:
-                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
-                            sys.stdout.flush()
+                            print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
                         o.write(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}\n")
                 else:
                     print(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}")
@@ -168,8 +167,7 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                 if len(out) != 0:
                     with open(out,aow) as o:
                         if not silent:
-                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n" % (out,pop,file)),
-                            sys.stdout.flush()
+                            print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
                         o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
                 else:
                     print(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
@@ -178,8 +176,7 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                 if len(out) != 0:
                     with open(out,aow) as o:
                         if not silent:
-                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
-                            sys.stdout.flush()
+                            print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
                         o.write(f"{file},{seqlen},{pop},{len(d)},{no_var()}\n")
                 else:
                     print(f"{file},{seqlen},{pop},{len(d)},{no_var()}")
@@ -188,8 +185,7 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                 if len(out) != 0:
                     with open(out,aow) as o:
                         if not silent:
-                            sys.stdout.write(f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}\n")
-                            sys.stdout.flush()
+                            print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
                         o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}\n")
                 else:
                     print(f"{file},{seqlen},{pop},{len(var[0])},{ply[0]},{ply[1]},{ply[2]},{ply[3]}")
