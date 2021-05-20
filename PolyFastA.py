@@ -235,7 +235,7 @@ def readfasta(file, stdin):
                 if line[0] == ">":
                     head = line[1:].rstrip()
                     data[head] = ''
-                else:
+                elif len(head) != 0 and line[0] != ">":
                     data[head] += line.rstrip().upper()
     if head == '':
         print(f"# file {file} is not FASTA!")
