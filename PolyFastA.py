@@ -106,7 +106,7 @@ def main():
             parser.error("A FASTA file or multiple files cannot be used with the --pipe argument.")
         d = readfasta(file, args.pipe)
         # check fasta file
-        if type(d) == "dict":
+        if d == dict:
             file = file.split('/')[-1]
             seqlen = list(map(lambda x: len(d[x]), d.keys()))
             if all_same(seqlen):
