@@ -105,37 +105,39 @@ def main():
         if len(args.file) > 0  and args.pipe and not (args.file[0] == "stdin" or args.file[0] == args.name):
             parser.error("A FASTA file or multiple files cannot be used with the --pipe argument.")
         d = readfasta(file, args.pipe)
-        file = file.split('/')[-1]
-        seqlen = list(map(lambda x: len(d[x]), d.keys()))
-        if all_same(seqlen):
-            seqlen = seqlen[0]
-            if args.cds and (seqlen % 3) != 0:
+        # check fasta file
+        if type(d) == "dict":
+            file = file.split('/')[-1]
+            seqlen = list(map(lambda x: len(d[x]), d.keys()))
+            if all_same(seqlen):
+                seqlen = seqlen[0]
+                if args.cds and (seqlen % 3) != 0:
+                    if len(args.out) != 0:
+                        with open(args.out, "a") as o:
+                            o.write(f"# CDS sequence length is not a multiple of 3: {file}\n")
+                    else:
+                        print(f"# CDS sequence length is not a multiple of 3: {file}")
+                if not args.pops:
+                    print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
+                else:
+                    popkeys = args.pops.split(',')
+                    for pop in popkeys:
+                        grp = filter(lambda x: pop in x, d.keys())
+                        if len(grp) == 0:
+                            if len(args.out) != 0:
+                                with open(args.out, "a") as o:
+                                    o.write(f"# Pop {pop} string was not found in fasta headers.\n")
+                            else:
+                                print(f"# Pop {pop} string was not found in fasta headers.")
+                            continue
+                        dgrp = {k: d[k] for k in grp}
+                        print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
+            else:
                 if len(args.out) != 0:
                     with open(args.out, "a") as o:
-                        o.write(f"# CDS sequence length is not a multiple of 3: {file}\n")
+                        o.write(f"# Sequences do not have the same length: {file}\n")
                 else:
-                    print(f"# CDS sequence length is not a multiple of 3: {file}")
-            if not args.pops:
-                print_result(d, seqlen, args.cds, args.out, "a", file, "NA", args.silent, 0, args.jc)
-            else:
-                popkeys = args.pops.split(',')
-                for pop in popkeys:
-                    grp = filter(lambda x: pop in x, d.keys())
-                    if len(grp) == 0:
-                        if len(args.out) != 0:
-                            with open(args.out, "a") as o:
-                                o.write(f"# Pop {pop} string was not found in fasta headers.\n")
-                        else:
-                            print(f"# Pop {pop} string was not found in fasta headers.")
-                        continue
-                    dgrp = {k: d[k] for k in grp}
-                    print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
-        else:
-            if len(args.out) != 0:
-                with open(args.out, "a") as o:
-                    o.write(f"# Sequences do not have the same length: {file}\n")
-            else:
-                print(f"# Sequences do not have the same length: {file}")
+                    print(f"# Sequences do not have the same length: {file}")
 
 
 
@@ -218,6 +220,7 @@ def print_header(header, cds, out, aow):
 
 def readfasta(file, stdin):
     data = {}
+    head = ''
     if stdin:
         for line in sys.stdin.readlines():
             if line[0] == ">":
@@ -234,7 +237,11 @@ def readfasta(file, stdin):
                     data[head] = ''
                 else:
                     data[head] += line.rstrip().upper()
-    return data
+    if head == '':
+        print(f"# file {file} is not FASTA!")
+        return 1
+    else:
+        return data
 
 def getvarsites(d, seqlen):
     var = []
