@@ -170,9 +170,9 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                     with open(out,aow) as o:
                         if not silent:
                             print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
-                        o.write(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
+                        o.write(f"{file},{ssites}{nsites},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
                 else:
-                    print(f"{file},{seqlen},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
+                    print(f"{file},{ssites}{nsites},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
         else:
             if len(var) == 0:
                 if len(out) != 0:
@@ -207,9 +207,9 @@ def print_header(header, cds, out, aow):
         if header == 1 or header == 2:
             if len(out) != 0:
                 with open(out,aow) as o:
-                    o.write("file,seqlen,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops\n")
+                    o.write("file,sites_S,sites_N,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops\n")
             else:
-                print("file,seqlen,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops")
+                print("file,sites_S,sites_N,pop,N,seg_sites_S,seg_sites_N,pi_S,pi_N,theta_S,theta_N,tajimasD_S,tajimasD_N,nstops")
     else:
         if header == 1 or header == 2:
             if len(out) != 0:
