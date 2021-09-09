@@ -170,9 +170,9 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
                     with open(out,aow) as o:
                         if not silent:
                             print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
-                        o.write(f"{file},{ssites}{nsites},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
+                        o.write(f"{file},{round(ssites,2)},{round(nsites,2)},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}\n")
                 else:
-                    print(f"{file},{ssites}{nsites},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
+                    print(f"{file},{round(ssites,2)},{round(nsites,2)},{pop},{len(var[0])},{ply_s[0]},{ply_n[0]},{ply_s[1]},{ply_n[1]},{ply_s[2]},{ply_n[2]},{ply_s[3]},{ply_n[3]},{nstops}")
         else:
             if len(var) == 0:
                 if len(out) != 0:
@@ -302,8 +302,8 @@ def getvarCDSsites(d, seqlen):
     # keep only variable codons and positions
     codsnpos_clean = [ cod for cod in codsnpos_clean if len(cod[0]) > 1 ]
     # extract synonymous and non-synonymous positions
-    S = sum([ get_syn_nonsyn_cod_sites(cod)[0] for cod in codsnpos ], [])
-    N = sum([ get_syn_nonsyn_cod_sites(cod)[1] for cod in codsnpos ], [])
+    S = sum([ get_syn_nonsyn_cod_sites(cod)[0] for cod in codsnpos_clean ], [])
+    N = sum([ get_syn_nonsyn_cod_sites(cod)[1] for cod in codsnpos_clean ], [])
     return count_syn,S,N,nstops,missingcodpos
 
 
@@ -312,10 +312,10 @@ def get_syn_nonsyn_cod_sites(cod):
     S,N = [],[]
     # universal genetic code
     gc = {
-     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T',  'ACC': 'T',  'ACG': 'T',  'ACT': 'T', 'AGA': 'R2',  'AGC': 'S2', 'AGG': 'R2', 'AGT': 'S2', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
-     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P',  'CCC': 'P',  'CCG': 'P',  'CCT': 'P', 'CGA': 'R4',  'CGC': 'R4',  'CGG': 'R4', 'CGT': 'R4',  'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
-     'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A',  'GCC': 'A',  'GCG': 'A',  'GCT': 'A', 'GGA': 'G',  'GGC': 'G',  'GGG': 'G', 'GGT': 'G',  'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
-                 'TAC': 'Y',             'TAT': 'Y', 'TCA': 'S4', 'TCC': 'S4', 'TCG': 'S4', 'TCT': 'S4',             'TGC': 'C',  'TGG': 'W', 'TGT': 'C',  'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
+     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T',  'ACC': 'T',  'ACG': 'T',  'ACT': 'T', 'AGA': 'R2', 'AGC': 'S2', 'AGG': 'R2', 'AGT': 'S2', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
+     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P',  'CCC': 'P',  'CCG': 'P',  'CCT': 'P', 'CGA': 'R4', 'CGC': 'R4', 'CGG': 'R4', 'CGT': 'R4', 'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
+     'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A',  'GCC': 'A',  'GCG': 'A',  'GCT': 'A', 'GGA': 'G',  'GGC': 'G',  'GGG': 'G',  'GGT': 'G',  'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
+                 'TAC': 'Y',             'TAT': 'Y', 'TCA': 'S4', 'TCC': 'S4', 'TCG': 'S4', 'TCT': 'S4',             'TGC': 'C',  'TGG': 'W',  'TGT': 'C',  'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
     # degenerancy dictionary
     aa_degen = {
      'K': '2fAG', 'N': '2fCT', 'T':  '4f', 'R2': '2fAG',  'S2': '2fCT', 'S2': '2fCT', 'I': '3f', 'M': '0f',
@@ -344,8 +344,8 @@ def get_syn_nonsyn_cod_sites(cod):
             S += [ i + cod[1] for i in vcp ]
         # everything else
         else:
-            # R2 synonymous at position 1
-            if any([ a == "R1" for a in aa ]) and any([ a == "R2" for i in aa ]) and not any([i == 2 for i in vcp]):
+            # R2-4 synonymous at position 1
+            if any([ a == "R2" for a in aa ]) and any([ a == "R4" for a in aa ]) and not any([i == 2 for i in vcp]):
                 if len(cod[0]) == 2:
                     # if only R1 and R2
                     S.append(vcp[0] + cod[1])
