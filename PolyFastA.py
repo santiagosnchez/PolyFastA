@@ -302,8 +302,10 @@ def getvarCDSsites(d, seqlen):
     # keep only variable codons and positions
     codsnpos_clean = [ cod for cod in codsnpos_clean if len(cod[0]) > 1 ]
     # extract synonymous and non-synonymous positions
-    S = sum([ get_syn_nonsyn_cod_sites(cod)[0] for cod in codsnpos_clean ], [])
-    N = sum([ get_syn_nonsyn_cod_sites(cod)[1] for cod in codsnpos_clean ], [])
+    S_N = [ get_syn_nonsyn_cod_sites(cod) for cod in codsnpos_clean ]
+    # unpack
+    S = sum([ syn[0] for syn in S_N ], [])
+    N = sum([ syn[1] for syn in S_N ], [])
     return count_syn,S,N,nstops,missingcodpos
 
 
@@ -312,16 +314,11 @@ def get_syn_nonsyn_cod_sites(cod):
     S,N = [],[]
     # universal genetic code
     gc = {
-     'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N', 'ACA': 'T',  'ACC': 'T',  'ACG': 'T',  'ACT': 'T', 'AGA': 'R2', 'AGC': 'S2', 'AGG': 'R2', 'AGT': 'S2', 'ATA': 'I', 'ATC': 'I', 'ATG': 'M', 'ATT': 'I',
-     'CAA': 'Q', 'CAC': 'H', 'CAG': 'Q', 'CAT': 'H', 'CCA': 'P',  'CCC': 'P',  'CCG': 'P',  'CCT': 'P', 'CGA': 'R4', 'CGC': 'R4', 'CGG': 'R4', 'CGT': 'R4', 'CTA': 'L', 'CTC': 'L', 'CTG': 'L', 'CTT': 'L',
-     'GAA': 'E', 'GAC': 'D', 'GAG': 'E', 'GAT': 'D', 'GCA': 'A',  'GCC': 'A',  'GCG': 'A',  'GCT': 'A', 'GGA': 'G',  'GGC': 'G',  'GGG': 'G',  'GGT': 'G',  'GTA': 'V', 'GTC': 'V', 'GTG': 'V', 'GTT': 'V',
-                 'TAC': 'Y',             'TAT': 'Y', 'TCA': 'S4', 'TCC': 'S4', 'TCG': 'S4', 'TCT': 'S4',             'TGC': 'C',  'TGG': 'W',  'TGT': 'C',  'TTA': 'L', 'TTC': 'F', 'TTG': 'L', 'TTT': 'F'}
-    # degenerancy dictionary
-    aa_degen = {
-     'K': '2fAG', 'N': '2fCT', 'T':  '4f', 'R2': '2fAG',  'S2': '2fCT', 'S2': '2fCT', 'I': '3f', 'M': '0f',
-     'Q': '2fAG', 'H': '2fCT', 'P':  '4f', 'R4': '4f',    'L': '4f',
-     'E': '2fAG', 'D': '2fCT', 'A':  '4f', 'G':  '4f',    'V': '4f',
-                  'Y': '2fCT', 'S4': '4f', 'C':  '2fCT',  'W': '0f',    'F': '2fCT', 'L':  '2fAG'}
+     'AAA': 'K2', 'ACA': 'T4', 'AGA': 'R2', 'ATA': 'I3', 'CAA': 'Q2', 'CCA': 'P4', 'CGA': 'R4', 'CTA': 'L4', 'GAA': 'E2', 'GCA': 'A4', 'GGA': 'G4', 'GTA': 'V4',              'TCA': 'S4', 'TGC': 'C2', 'TTA': 'L2',
+     'AAC': 'N2', 'ACC': 'T4', 'AGC': 'S2', 'ATC': 'I3', 'CAC': 'H2', 'CCC': 'P4', 'CGC': 'R4', 'CTC': 'L4', 'GAC': 'D2', 'GCC': 'A4', 'GGC': 'G4', 'GTC': 'V4', 'TAC': 'Y2', 'TCC': 'S4', 'TGG': 'W0', 'TTC': 'F2',
+     'AAG': 'K2', 'ACG': 'T4', 'AGG': 'R2', 'ATG': 'M0', 'CAG': 'Q2', 'CCG': 'P4', 'CGG': 'R4', 'CTG': 'L4', 'GAG': 'E2', 'GCG': 'A4', 'GGG': 'G4', 'GTG': 'V4',              'TCG': 'S4',              'TTG': 'L2',
+     'AAT': 'N2', 'ACT': 'T4', 'AGT': 'S2', 'ATT': 'I3', 'CAT': 'H2', 'CCT': 'P4', 'CGT': 'R4', 'CTT': 'L4', 'GAT': 'D2', 'GCT': 'A4', 'GGT': 'G4', 'GTT': 'V4', 'TAT': 'Y2', 'TCT': 'S4', 'TGT': 'C2', 'TTT': 'F2'
+     }
     # keep only complete codons
     cod = [[ c for c in cod[0] if gc.get(c) ], cod[1]]
     # check if any codons left
@@ -344,21 +341,124 @@ def get_syn_nonsyn_cod_sites(cod):
             S += [ i + cod[1] for i in vcp ]
         # everything else
         else:
-            # R2-4 synonymous at position 1
-            if any([ a == "R2" for a in aa ]) and any([ a == "R4" for a in aa ]) and not any([i == 2 for i in vcp]):
-                if len(cod[0]) == 2:
-                    # if only R1 and R2
-                    S.append(vcp[0] + cod[1])
+            # if just two codons
+            if len(cod[0]) == 2:
+                if len(vcp) > 1:
+                    ##### look for "hidden" synonymous changes
+                    # start with changes between 2-fold and 4-fold changes in L and R
+                    # assumes that 1st and 3rd positions are synonymous
+                    if (any([ a == "L2" for a in aa ]) and any([ a == "L4" for a in aa ])) or \
+                       (any([ a == "R2" for a in aa ]) and any([ a == "R4" for a in aa ])):
+                        S.append(vcp[0] + cod[1])
+                        S.append(vcp[1] + cod[1])
+                    ##### fetch synonymous differences at 3rd codon positions in 4-fold, 3-fold, and 2-fold degen sites #####
+                    # check for mixed synonymous and non-synonymous changes in 1st and 3rd positions
+                    # look for synonymous changes in 3-fold degenerate sites (i.e. I)
+                    elif vcp[0] == 0 and vcp[1] == 2 and \
+                         ((any([ a == "F2" for a in aa ]) and any([ a == "I3" for a in aa ])) or \
+                         (any([ a == "L2" for a in aa ]) and any([ a == "I3" for a in aa ]))):
+                        # if there are differences in 3rd codon position and one amino acid is
+                        # 3-fold degen it is likely a synonymous change
+                        S.append(vcp[-1] + cod[1])
+                        # 1st codon position must be a nonsynonymous change
+                        N.append(vcp[0] + cod[1])
+                    # look for synonymous changes in 4-fold degenerate sites (i.e. S, P, T, A, V, G, L, R)
+                    # this deals with codon differences between R4 and S2 and L4 and F2, respectively.
+                    elif vcp[0] == 0 and vcp[1] == 2 and any([ a[1] == "4" for a in aa ]):
+                        # if there are differences in 3rd codon position and one amino acid is
+                        # 4-fold degen it is likely a synonymous change
+                        S.append(vcp[-1] + cod[1])
+                        # 1st codon position must be a nonsynonymous change
+                        N.append(vcp[0] + cod[1])
+                    # check for mixed synonymous and non-synonymous changes in 2nd and 3rd positions
+                    elif vcp[0] == 1 and vcp[1] == 2 and any([ a[1] == "4" for a in aa ]):
+                        # if there are differences in 3rd codon position and one amino acid is
+                        # 4-fold degen it is likely a synonymous change
+                        S.append(vcp[-1] + cod[1])
+                        # 2nd codon position must be a nonsynonymous change
+                        N.append(vcp[0] + cod[1])
+                    # looks for synonymous differences at 3rd codon positions in 2-fold degen sites #
+                    # check for mixed synonymous and non-synonymous changes in 1st and 3rd positions
+                    elif vcp[0] == 0 and vcp[1] == 2 and all([ a[1] == "2" for a in aa ]):
+                        # 2nd codon pos == "A"
+                        # First C <-> T
+                        # Then A <-> G
+                        # 2nd codon pos == "G"  First C <-> T
+                        # then A <-> G;
+                        # the last line of the "if" statement assumes a one-directional codon evolution model such as
+                        # 'AGA/G' -> 'AGG/A' -> 'TGG' for 'W' and 'TGG/A' -> 'TGA/G' -> 'ATG' for 'M'
+                        if all([ a[0] == "Y" or a[0] == "H" or a[0] == "N" or a[0] == "D" or a[0] == "Y" for a in aa ]) or \
+                           all([ a[0] == "Q" or a[0] == "K" or a[0] == "E" for a in aa ]) or \
+                           all([ a[0] == "C" or a[0] == "S" for a in aa ]) or \
+                           (any([ a == "R2" for a in aa ]) and any([ a == "W0" for a in aa ])) or\
+                           (any([ a == "L2" for a in aa ]) and any([ a == "M0" for a in aa ])):
+                            # if there are differences in 3rd codon position and both amino acids are
+                            # 2-fold degen it is likely a synonymous change if it happens within C<->T and A<->G
+                            S.append(vcp[-1] + cod[1])
+                            # 1st codon position must be a nonsynonymous change
+                            N.append(vcp[0] + cod[1])
+                        else:
+                            # both 2nd and 3rd positions are nonsynonymous
+                            N.append(vcp[0] + cod[1])
+                            N.append(vcp[-1] + cod[1])
+                    # check for mixed synonymous and non-synonymous changes in 2nd and 3rd positions
+                    elif vcp[0] == 1 and vcp[1] == 2 and all([ a[1] == "2" for a in aa ]):
+                        # 1st codon position == "T"
+                        # C <-> T
+                        # A <-> G
+                        # this assumes a one-directional codon evolution model such as 'AGA/G' -> 'AGG/A' -> 'ATG'
+                        if all([ a[0] == "F" or a[0] == "C" or a[0] == "Y" or a[0] == "S" or a[0] == "N" for a in aa ]) or \
+                           all([ a[0] == "K" or a[0] == "R" for a in aa ]) or \
+                           (any([ a == "R2" for a in aa ]) and any([ a == "M0" for a in aa ])):
+                            # if there are differences in 3rd codon position and both amino acids are
+                            # 2-fold degen it is likely a synonymous change if it happens within C<->T and A<->G
+                            S.append(vcp[-1] + cod[1])
+                            # 2nd codon position must be a nonsynonymous change
+                            N.append(vcp[0] + cod[1])
+                        else:
+                            # both 2nd and 3rd positions are nonsynonymous
+                            N.append(vcp[0] + cod[1])
+                            N.append(vcp[-1] + cod[1])
+                    # now with 3-fold degen sites and 2-fold changes
+                    elif (any([ a == "N2" for a in aa ]) and any([ a == "I3" for a in aa ])) or \
+                         (any([ a == "S2" for a in aa ]) and any([ a == "I3" for a in aa ])):
+                        # if there are differences in 3rd codon position and one aa is I3 and the other wither N2 or S2
+                        # it is likely a synonymous change
+                        S.append(vcp[-1] + cod[1])
+                        # 2nd codon position must be a nonsynonymous change
+                        N.append(vcp[0] + cod[1])
+                    # this assumes a one-directional codon evolution model such as
+                    # 'AAA/G' -> 'AAG/A' -> 'ATA' for K2 and I3 and
+                    # 'AGA/G' -> 'AGG/A' -> 'ATA' for R2 and I3
+                    elif any([ c == "ATA" for c in cod[0]]) and (any([ a == "K2" for a in aa ]) or any([ a == "R2" for a in aa ])):
+                        # if there are differences in 3rd codon position and one aa is I3 and the other wither N2 or S2
+                        # it is likely a synonymous change
+                        S.append(vcp[-1] + cod[1])
+                        # 2nd codon position must be a nonsynonymous change
+                        N.append(vcp[0] + cod[1])
+                    # check for mixed synonymous and non-synonymous changes in 1st, 2nd and 3rd positions
+                    #                                                       3rd codon base difference is A <-> G       or                      C <-> T
+                    elif len(vcp) == 3 and all([ a[1] == "2" for a in aa ]) and (all([ b == "A" or b == "G" for b in vcb[-1] ]) or all([ b == "C" or b == "T" for b in vcb[-1] ])):
+                        # 3rd position assumed to be synonymous if change is 2-fold and within
+                        # A<->G or C<->T
+                        S.append(vcp[-1] + cod[1])
+                        # 1st and 2nd codon differences should be nonsynonymous
+                        N.append(vcp[0] + cod[1])
+                        N.append(vcp[1] + cod[1])
+                    else:
+                        # make any other change nonsynonymous
+                        N += [ i + cod[1] for i in vcp ]
                 else:
-                    if len(vcb[0]) == 2:
-                        # if there are only two bases at possition 1
+                    # make 1st position change synonymous if in L or R or S
+                    if (any([ a == "L2" for a in aa ]) and any([ a == "L4" for a in aa ])) or \
+                       (any([ a == "R2" for a in aa ]) and any([ a == "R4" for a in aa ])) or \
+                       (any([ a == "S2" for a in aa ]) and any([ a == "S4" for a in aa ])):
                         S.append(vcp[0] + cod[1])
                     else:
-                        # treat all changes in position 1 as non-synonymous
-                        # even if there is one R2 polymorphism
-                        N += [ i + cod[1] for i in vcp ]
+                        # single change in 1st and 2nd position if any other aa as nonsynonymous
+                        N.append(vcp[0] + cod[1])
             else:
-                # check mixed synonymous and non-synonymous changes
+                # check mixed synonymous and non-synonymous changes among at least 3 different segregating codons per site
                 if len(list(set(aa))) < len(aa):
                     # found synonymous
                     syn = {}
@@ -373,8 +473,9 @@ def get_syn_nonsyn_cod_sites(cod):
                     if len(vcp) > 1:
                         N += [ i + cod[1] for i in vcp[:-1] ]
                 else:
+                    # make any other change nonsynonymous
                     N += [ i + cod[1] for i in vcp ]
-            # vectors of synonymous and nonsynonymous changes
+        # vectors of synonymous and nonsynonymous changes
         return S,N
 
 def no_var():
