@@ -132,6 +132,8 @@ def main():
                             continue
                         dgrp = {k: d[k] for k in grp}
                         print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
+                if len(args.out) != 0 and not args.silent:
+                    print("")
             else:
                 if len(args.out) != 0:
                     with open(args.out, "a") as o:
@@ -201,8 +203,6 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
         elif header == 2:
             print_header(header, cds, out, aow)
             no_header(d, seqlen, cds, out, "a", file, pop)
-        if len(out) != 0 and not silent:
-            print("")
 
 
 def print_header(header, cds, out, aow):
