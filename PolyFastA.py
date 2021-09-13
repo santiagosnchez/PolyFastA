@@ -384,6 +384,14 @@ def get_syn_nonsyn_cod_sites(cod):
                     # should be synonymous, if we are being parsimonious
                     if any([ a == "L2R" or a == "R2R" for a in aa]) and any([ a == "P4N" or a == "L4N" or a == "R4N" or a == "H2Y" or a == "Q2R" for a in aa ]):
                         S.append(vcp[0] + cod[1])
+                    # changes from L4N and R4N to any of I, M, T, N, K band if the last base is A/G
+                    elif (any([ a == "L4N" for a in aa]) and
+                         (any([ a == "T0G" for a in aa ]) or \
+                          any([ c == "TCA" or c == "TCG" for c in cod[0]]))) or \
+                         (any([ a == "R4N" for a in aa]) and \
+                         (any([ a == "M0G" for a in aa ]) or \
+                          any([ c == "ACA" or c == "ACG" or c == "AAA" or c == "AAG" for c in cod[0]]))):
+                        S.append(vcp[0] + cod[1])
                     else:
                         N.append(vcp[0] + cod[1])
                 # all changes in 2nd base should be nonsynonymous
