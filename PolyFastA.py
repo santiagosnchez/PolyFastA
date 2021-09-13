@@ -376,6 +376,10 @@ def get_syn_nonsyn_cod_sites(cod):
                     #                                   or TTA/G -> TTG/A -> ATG
                     elif (any([ a == "R2R" for a in aa ]) or any([ a == "K2R" for a in aa ]) or any([ a == "L2R" for a in aa ])) and any([ a == "M0G" for a in aa ]):
                         S.append(vcp[vcp.index(2)] + cod[1])
+                    # assumes a mutational model following TTA/G -> CTA/A -> CTT/C -> CAT/C
+                    #                                   or AGA/G -> CGA/G -> CGT/C -> CAT/C
+                    elif all([ a == "R2R" or a == "H2Y" for a in aa ]) or all([ a == "L2R" or a == "H2Y" for a in aa ]):
+                        S.append(vcp[vcp.index(2)] + cod[1])
                     else:
                         N.append(vcp[vcp.index(2)] + cod[1])
                 # looks for 1st base synonymous changes
