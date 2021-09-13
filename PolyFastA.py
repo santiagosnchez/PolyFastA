@@ -132,15 +132,14 @@ def main():
                             continue
                         dgrp = {k: d[k] for k in grp}
                         print_result(dgrp, seqlen, args.cds, args.out, "a", file, pop, args.silent, 0, args.jc)
-                if len(args.out) != 0 and not args.silent:
-                    print("")
             else:
                 if len(args.out) != 0:
                     with open(args.out, "a") as o:
                         o.write(f"# Sequences do not have the same length: {file}\n")
                 else:
                     print(f"# Sequences do not have the same length: {file}")
-
+    if len(args.out) != 0 and not args.silent:
+        print("")
 
 
 # functions
