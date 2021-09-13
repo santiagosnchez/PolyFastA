@@ -382,7 +382,7 @@ def get_syn_nonsyn_cod_sites(cod):
                 if vcp[0] == 0:
                     # changes from L2R and R2R to any of the L, P, H, Q, R band
                     # should be synonymous, if we are being parsimonious
-                    if any([ a == "L2R" or a == "R2R" for a in aa]) and any([ a == "P4N" or a == "L4N" or a == "R4N" or a == "H2Y" or a == "Q2R"]):
+                    if any([ a == "L2R" or a == "R2R" for a in aa]) and any([ a == "P4N" or a == "L4N" or a == "R4N" or a == "H2Y" or a == "Q2R" for a in aa ]):
                         S.append(vcp[0] + cod[1])
                     else:
                         N.append(vcp[0] + cod[1])
