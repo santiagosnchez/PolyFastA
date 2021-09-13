@@ -378,9 +378,11 @@ def get_syn_nonsyn_cod_sites(cod):
                         S.append(vcp[vcp.index(2)] + cod[1])
                     else:
                         N.append(vcp[vcp.index(2)] + cod[1])
-                # looks for 1st base synonymous changes in L4N <-> L2R and R4N <-> R2R
+                # looks for 1st base synonymous changes
                 if vcp[0] == 0:
-                    if all([ a == "L4N" or a == 'L2R' for a in aa ] ) or all([ a == "R4N" or a == "R2R" for a in aa ]):
+                    # changes from L2R and R2R to any of the L, P, H, Q, R band
+                    # should be synonymous, if we are being parsimonious
+                    if any([ a == "L2R" or a == "R2R" for a in aa]) and any([ a == "P4N" or a == "L4N" or a == "R4N" or a == "H2Y" or a == "Q2R"]):
                         S.append(vcp[0] + cod[1])
                     else:
                         N.append(vcp[0] + cod[1])
