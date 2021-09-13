@@ -351,7 +351,7 @@ def get_syn_nonsyn_cod_sites(cod):
                 else:
                     N.append(vcp[0] + cod[1])
             # tackle 2 and 3 base changes
-            elif len(vcp) > 2:
+            elif len(vcp) > 1:
                 # look for 3rd base synonymous changes in 4-fold and 2-fold codons
                 # and for 1st base synonymous changes in L4N <-> L2R and R4N <-> R2R
                 if vcp[1] == 2 or vcp[2] == 2:
