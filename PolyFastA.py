@@ -361,12 +361,12 @@ def get_syn_nonsyn_cod_sites(cod):
                     if any([ a[1:] == "4N" for a in aa ]) or all([ a[1:] == "2Y" for a in aa ]) or all([ a[1:] == "2R" for a in aa ]):
                         S.append(vcp[vcp.index(2)] + cod[1])
                     # look synonymous changes in for 3-fold generate sites
-                    # excludes changes from/to AAG, AGG, TTG, GAG, CAG from/to ATT or ATC
+                    # excludes changes from/to AAG, AGG, TTG, GAG, from/to ATT or ATC
                     # as it requires that the 3rd position change is nonsynonymous
                     elif any([ a == "I3H" for a in aa ]) and \
                         (any([ a[1:] == "2Y" for a in aa ]) or \
                             (any([ a[1:] == "2R" for a in aa ]) and \
-                            not all([ c == "AAG" or c == "AGG" or c == "CAG" or c == "GAG" or c == "TTG" or c == "ATT" or c == "ATC" for c in cod[0]]))):
+                            not all([ c == "AAG" or c == "AGG" or c == "GAG" or c == "TTG" or c == "ATT" or c == "ATC" for c in cod[0]]))):
                         S.append(vcp[vcp.index(2)] + cod[1])
                     # assumes a mutational model following TTA/G -> TTG/A -> TGG
                     elif any([ a == "L2R" for a in aa ]) and any([ a == "W0G" for a in aa ]):
@@ -378,7 +378,15 @@ def get_syn_nonsyn_cod_sites(cod):
                         S.append(vcp[vcp.index(2)] + cod[1])
                     # assumes a mutational model following TTA/G -> CTA/A -> CTT/C -> CAT/C
                     #                                   or AGA/G -> CGA/G -> CGT/C -> CAT/C
-                    elif all([ a == "R2R" or a == "H2Y" for a in aa ]) or all([ a == "L2R" or a == "H2Y" for a in aa ]):
+                    # favors synonymous changes over nonsynonymous ones
+                    elif all([ a == "R2R" or a == "H2Y" for a in aa ]) or \
+                         all([ a == "L2R" or a == "H2Y" for a in aa ]) or \
+                         all([ a == "D2Y" or a == "R2R" for a in aa ]) or \
+                         all([ a == "F2Y" or a == "Q2R" for a in aa ]) or \
+                         all([ a == "C2Y" or a == "Q2R" for a in aa ]) or \
+                         all([ a == "E2R" or a == "S2Y" for a in aa ]):
+                        S.append(vcp[vcp.index(2)] + cod[1])
+                    elif all([ a == "S2Y" or a == "Q2R" for a in aa ]) or all([ a == "L2R" or a == "H2Y" for a in aa ]):
                         S.append(vcp[vcp.index(2)] + cod[1])
                     else:
                         N.append(vcp[vcp.index(2)] + cod[1])
