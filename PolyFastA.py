@@ -393,8 +393,7 @@ def get_syn_nonsyn_cod_sites(cod):
                          (any([ a == "T0G" for a in aa ]) or \
                           any([ c == "TCA" or c == "TCG" for c in cod[0]]))) or \
                          (any([ a == "R4N" for a in aa]) and \
-                         (any([ a == "M0G" for a in aa ]) or \
-                          any([ c == "ACA" or c == "ACG" or c == "AAA" or c == "AAG" for c in cod[0]]))):
+                          any([ c == "ATG" or c == "ATA" or c == "ACA" or c == "ACG" or c == "AAA" or c == "AAG" for c in cod[0]]))):
                         S.append(vcp[0] + cod[1])
                     else:
                         N.append(vcp[0] + cod[1])
