@@ -101,7 +101,7 @@ def main():
     # read data and get alignment length
     if not args.silent:
         print_result({}, "", args.cds, args.out, "w", args.file, "NA", args.silent, 1, args.jc)
-    for file in args.file:
+    for file in sorted(args.file):
         if len(args.file) > 0  and args.pipe and not (args.file[0] == "stdin" or args.file[0] == args.name):
             parser.error("A FASTA file or multiple files cannot be used with the --pipe argument.")
         d = readfasta(file, args.pipe)
