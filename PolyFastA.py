@@ -335,8 +335,7 @@ def get_syn_nonsyn_cod_sites(cod):
             if not all_same(codbase):
                 vcp.append(i)
                 vcb.append(list(set(codbase)))
-        # test codons
-        # get amino acids
+        # get amino acids, degeneracy, and 3rd position base
         aa = [ gc[i] for i in cod[0] ]
         # tackle two codon alleles
         if len(cod[0]) == 2:
