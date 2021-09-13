@@ -201,6 +201,9 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
         elif header == 2:
             print_header(header, cds, out, aow)
             no_header(d, seqlen, cds, out, "a", file, pop)
+        if len(out) != 0 and not silent:
+            print("")
+
 
 def print_header(header, cds, out, aow):
     if cds:
