@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # PolyFastA.py
 # Santiago Sanchez-Ramirez, University of Toronto, santiago.snchez@gmail.com
 
