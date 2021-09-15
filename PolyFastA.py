@@ -149,13 +149,17 @@ def print_result(d, seqlen, cds, out, aow, file, pop, silent, header, jc):
         pos,var = getvarsites(d,seqlen)
         if cds:
             if len(var) == 0:
+                # get synonymous and non-synonymous sites
+                ssites,s,n,nstops,missingsites = getvarCDSsites(d, seqlen)
+                # remainder non-synonymous sites
+                nsites = (seqlen-missingsites)-ssites
                 if len(out) != 0:
                     with open(out,aow) as o:
                         if not silent:
                             print("\r", f"Writting to {out}, pop: {pop:<10s}, parsing: {file:<15s}", end='', flush=True)
-                        o.write(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}\n")
+                        o.write(f"{file},{round(ssites,2)},{round(nsites,2)},{pop},{len(d)},{no_var()},{no_var()},{0}\n")
                 else:
-                    print(f"{file},{seqlen},{pop},{len(d)},{no_var()},{no_var()},{0}")
+                    print(f"{file},{round(ssites,2)},{round(nsites,2)},{pop},{len(d)},{no_var()},{no_var()},{0}")
             else:
                 # get synonymous and non-synonymous sites
                 ssites,s,n,nstops,missingsites = getvarCDSsites(d, seqlen)
